@@ -8,17 +8,36 @@ package Catalyst::Authentication::Store::CouchDB;
 use strict;
 use warnings;
 
-use Moose;
+use Moose 2.00;
+use Catalyst::Exception;
 
-has 'config' => (is => 'rw', isa => 'HashRef');
-has 'realm' => (is => 'rw', isa => 'Any');
+has 'store_user_class'  => (is => 'ro', isa => 'Str', default => 'Catalyst::Authentication::Store::CouchDB::User', );
+has 'config'            => (is => 'ro', isa => 'HashRef', required => 1,  );
 
 # Convert the parameters passed to ->new into the correct
 # format for passing to our Moose generated constructor.
 # Also, ensure that the user class is loaded.
 
 around BUILDARGS => sub {
-    my ( $orig, $class, $config, $app ) = @_;
+    my ( $orig, $class, $config, $c ) = @_;
+
+    # Validate the configuration
+    if (!$config->{couchdb_uri}) {
+        Catalyst::Exception->throw("couchdb_uri required in configuration");
+    }
+
+    if (!$config->{dbname}) {
+        Catalyst::Exception->throw("dbname required in configuration");
+    }
+    if (!$config->{designdoc}) {
+        Catalyst::Exception->throw("designdoc required in configuration");
+    }
+    if ($config->{designdoc} !~ /^\_design\//) {
+        Catalyst::Exception->throw("designdoc must start with _design/ required in configuration");
+    }
+    if (!$config->{view}) {
+        Catalyst::Exception->throw("view required in configuration");
+    }
 
     ## figure out if we are overriding the default store user class
     $config->{'store_user_class'} = (exists($config->{'store_user_class'})) ? $config->{'store_user_class'} :
@@ -30,6 +49,7 @@ around BUILDARGS => sub {
     # $orig will call the superclass BUILDARGS, which
     # will format the args hash appropriately.
     return $class->$orig(
+        store_user_class => $config->{store_user_class},
         config => $config,
     );
 };
@@ -37,7 +57,7 @@ around BUILDARGS => sub {
 sub from_session {
     my ($self, $c, $frozenuser) = @_;
 
-    my $user = $self->config->{'store_user_class'}->new($self->{'config'}, $c);
+    my $user = $self->store_user_class->new($self->{'config'}, $c);
     return $user->from_session($frozenuser);
 }
 
@@ -50,7 +70,7 @@ sub for_session {
 sub find_user {
     my ($self, $authinfo, $c) = @_;
 
-    my $user = $self->config->{'store_user_class'}->new($self->{'config'}, $c);
+    my $user = $self->store_user_class->new($self->{'config'}, $c);
 
     return $user->load($authinfo, $c);
 }
@@ -58,7 +78,7 @@ sub find_user {
 sub user_supports {
     my $self = shift;
     # this can work as a class method on the user class
-    return $self->config->{'store_user_class'}->supports( @_ );
+    return $self->store_user_class->supports( @_ );
 }
 
 1;

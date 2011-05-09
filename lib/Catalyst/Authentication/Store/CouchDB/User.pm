@@ -19,15 +19,14 @@ use Try::Tiny 0.09;
 use namespace::autoclean;
 extends 'Catalyst::Authentication::User';
 
-has 'config'    => (is => 'ro', isa => 'HashRef', );
-has '_user'     => (is => 'rw', isa => 'CouchDB::Client::Doc', );
-has '_couchdb'  => (is => 'rw', isa => 'CouchDB::Client::DB', );
-has '_designdoc'  => (is => 'rw', isa => 'CouchDB::Client::DesignDoc', );
+has '_user'         => (is => 'rw', isa => 'CouchDB::Client::Doc', );
+has '_couchdb'      => (is => 'ro', isa => 'CouchDB::Client::DB', );
+has '_designdoc'    => (is => 'ro', isa => 'CouchDB::Client::DesignDoc', );
+has 'view'          => (is => 'ro', isa => 'Str', required => 1, );
 
 around BUILDARGS => sub {
     my ($orig, $class, $config, $c) = @_;
 
-    # Need to validate the configuration here - or possibly earlier
     # Allow the User Agent to be overridden - this is handy for tests to 
     # mock up the CouchDB interaction
 
@@ -40,7 +39,9 @@ around BUILDARGS => sub {
         ua  => $ua,
     );
 
-    Catalyst::Exception->throw("Could not connect to database") unless $couch->testConnection();
+    if (!$couch->testConnection()) {
+        Catalyst::Exception->throw("Could not connect to database");
+    }
 
     my $couch_database = $couch->newDB($config->{dbname});
     my $couch_designdoc = try {
@@ -55,10 +56,9 @@ around BUILDARGS => sub {
     }
 
     return $class->$orig(
-        config   => $config,
-        _couchdb => $couch_database,
-        _designdoc => $couch_designdoc,
-        c => $c,
+        _couchdb    => $couch_database,
+        _designdoc  => $couch_designdoc,
+        view        => $config->{view},
     );
 
 };
@@ -67,9 +67,8 @@ around BUILDARGS => sub {
 sub load {
     my ($self, $authinfo, $c) = @_;
 
-    my $config = $self->config();
-
-    my $couch_data = try { $self->_designdoc->queryView($config->{view},
+    my $couch_data = try { $self->_designdoc->queryView(
+            $self->view,
             include_docs    => 'true',
             limit           => 1,
             key             => $authinfo->{username},
