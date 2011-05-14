@@ -2,5 +2,9 @@ Revision history for Catalyst-Plugin-Authentication-Store-CouchDB
 
 {{$NEXT}}
 
+    Added a dependancy on Catalyst::Plugin::Authentication - it was
+    indirectly required, but didn't have a version number, and I
+    think there's a broken version on someones smoke tester.
+
 0.001     2011-05-13 10:10:22 Europe/London
 
