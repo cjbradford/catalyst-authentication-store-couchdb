@@ -2,7 +2,7 @@
 
 use strict;
 use warnings;
-use FindBin 1.49;
+use FindBin 1.47;
 use Test::More 0.98;
 use lib "$FindBin::Bin/lib";
 
