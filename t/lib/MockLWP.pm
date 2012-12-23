@@ -1,8 +1,9 @@
 package MockLWP;
 
-use LWP::UserAgent 5.834 qw ();
-use JSON 2.17 qw ();
-use HTTP::Response 5.824 qw ();
+use LWP::UserAgent 6.04 qw ();
+use JSON 2.53 qw ();
+use HTTP::Response 6.04 qw ();
+use HTTP::Headers 6.05 qw ();
 
 my $ua = LWP::UserAgent->new();
 
@@ -25,10 +26,13 @@ sub request {
 
     if (exists $data->{ $request->uri->as_string}) {
         my $response_data = $data->{ $request->uri->as_string};
+
+        my $headers = HTTP::Headers->new(map {split(/:/, $_, 2) } @{$response_data->{headers}});
+
         my $response = HTTP::Response->new(
             $response_data->{code},
             $response_data->{message},
-            $response_data->{headers},
+            \@headers,
             $response_data->{content},
         );
         $response->request($request);
